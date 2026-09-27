@@ -1,25 +1,21 @@
-# GPT History 🔍
+# gpthistory
 
-> **Semantic search for your personal ChatGPT conversations — right from your terminal.**
+A command-line tool to index and semantically search through your exported ChatGPT conversation history.
 
-Ever found yourself scrolling endlessly through the ChatGPT sidebar trying to dig up that one conversation from four months ago? Maybe you wrote a clever regex, designed an API schema, or brainstormed a project outline, but finding it again in OpenAI's interface feels like searching for a needle in a haystack.
-
-**`gpthistory`** solves this. It takes your exported ChatGPT data, embeds your chats locally with OpenAI vector embeddings, and gives you instant, semantic search from your command line. Best of all, every search result includes a direct, one-click link back to the exact conversation on ChatGPT.
+ChatGPT's sidebar makes it frustrating to locate older discussions, code snippets, or ideas. `gpthistory` parses your exported ChatGPT data dump, generates embeddings for each conversation using OpenAI's API, and saves them locally. You can then search your entire chat history semantically from the terminal and jump directly back to the original conversation via provided links.
 
 ---
 
-## ✨ Features
+## Features
 
-- **🧠 Semantic Search**: Don't worry about remembering the exact keywords you used. Ask for "docker postgres setup" or "how we handled stripe webhooks", and embeddings (`text-embedding-ada-002`) will find the right conversation based on context and meaning.
-- **⚡ Direct Web Links**: Jump directly to `https://chat.openai.com/c/<conversation-id>` straight from your terminal output.
-- **💰 Smart Incremental Indexing**: Saves your OpenAI API credits. When you re-export your history in the future, `gpthistory` detects conversations you've already indexed and only generates embeddings for new ones.
-- **🔒 Local & Private**: Your index file is stored locally on your machine at `~/.gpthistory/chatindex.csv`.
+- **Semantic Search**: Uses OpenAI embeddings (`text-embedding-ada-002`) to find conversations by context and meaning rather than strict keyword matching.
+- **Incremental Indexing**: Skips already indexed conversations when you import newer data exports, saving time and API costs.
+- **Direct Links**: Prints direct ChatGPT URLs (`https://chat.openai.com/c/<id>`) for matching conversations so you can reopen them in your browser.
+- **Local Storage**: Keeps your index stored locally at `~/.gpthistory/chatindex.csv`.
 
 ---
 
-## 🚀 Quickstart
-
-### 1. Installation
+## Installation
 
 Clone the repository and install it in editable mode:
 
@@ -29,50 +25,49 @@ cd gpt-history
 pip install -e .
 ```
 
-### 2. Export Your ChatGPT Data
+---
 
-Because OpenAI doesn't provide an open public API to fetch your personal chat history directly, export it from their web interface:
+## Setup & Usage
 
-1. Go to [chatgpt.com](https://chatgpt.com) and click your profile icon (bottom-left) → **Settings**.
-2. Navigate to **Data Controls** → **Export Data**.
-3. Confirm the export. OpenAI will email you a download link within a few minutes.
-4. Download and unzip the archive. You'll see a file called `conversations.json`.
+### 1. Export your ChatGPT data
 
-### 3. Set Your OpenAI API Key
+1. In ChatGPT, open **Settings** (bottom-left profile menu).
+2. Go to **Data Controls** → **Export Data**.
+3. Confirm the export and wait for the download link via email.
+4. Download and unzip the archive to find `conversations.json`.
 
-`gpthistory` uses OpenAI embeddings to index and search your chats. Set your API key in your shell:
+### 2. Configure your OpenAI API key
+
+Set your OpenAI API key in your shell:
 
 ```bash
-export OPENAI_API_KEY="sk-..."
+export OPENAI_API_KEY="your-api-key-here"
 ```
 
-*(You can also place it in a `.env` file in your working directory).*
+Or add it to a `.env` file in your working directory.
 
-### 4. Build Your Index
+### 3. Build the index
 
-Run the `build_index` command pointing to your extracted `conversations.json`:
+Run `build_index` pointing to your `conversations.json` file:
 
 ```bash
 gpthistory build_index --file /path/to/conversations.json
 ```
 
-What happens here:
-- Parses every message turn and content block.
-- Generates embeddings in batches of 100 to maximize throughput.
-- Writes the index and vectors to `~/.gpthistory/chatindex.csv`.
-- Subsequent runs will automatically skip conversations already in your index!
+This extracts the text from each chat, generates embeddings in batches of 100, and writes the index to `~/.gpthistory/chatindex.csv`. Running this again with a newer export file will only embed new conversations.
 
-### 5. Search Your Conversations
+### 4. Search
 
-Run the `search` command with your query:
+Run `search` followed by your query:
 
 ```bash
-gpthistory search "python asyncio task queue"
+gpthistory search "python asyncio queue"
 ```
 
-Sample output:
+Example output:
+
 ```text
-2026-09-28 01:00:00 - INFO - Searching for keyword: python asyncio task queue
+2026-09-28 01:00:00 - INFO - Searching for keyword: python asyncio queue
 2026-09-28 01:00:01 - INFO - a1b2c3d4-e5f6-7890-abcd-ef1234567890: Building an async worker pool in Python with asyncio.Queue
 2026-09-28 01:00:01 - INFO - ChatGPT Conversation link: https://chat.openai.com/c/a1b2c3d4-e5f6-7890-abcd-ef1234567890
 --------------------------------------
@@ -80,34 +75,23 @@ Sample output:
 
 ---
 
-## 🛠️ CLI Reference
+## How It Works
 
-| Command | Usage | Description |
-|---|---|---|
-| `build_index` | `gpthistory build_index --file <path>` | Extracts chats, generates embeddings, and saves/updates local index. |
-| `search` | `gpthistory search "<query>"` | Computes query vector, calculates dot products, and prints top matching chats. |
-
----
-
-## 🏗️ How It Works Under the Hood
-
-1. **Extraction**: Reads `conversations.json` mapping tree and pulls textual message parts.
-2. **Embedding**: Uses OpenAI's `text-embedding-ada-002` to turn conversation texts into dense vector representations.
-3. **Storage**: Keeps embeddings in a pipe-delimited CSV (`~/.gpthistory/chatindex.csv`) for fast local reading without requiring a heavy vector database setup.
-4. **Scoring**: When you search, your query is embedded on-the-fly, dot-product similarity is computed against all stored embeddings via NumPy, and top matches above the similarity threshold (>= 0.8) are returned in descending order.
+1. **Extraction**: Iterates through the message mapping in `conversations.json` to pull out raw text content.
+2. **Embeddings**: Passes batches of conversation texts to OpenAI's `text-embedding-ada-002` model.
+3. **Index Cache**: Stores chat IDs, section IDs, text snippets, and embeddings into a pipe-delimited CSV (`~/.gpthistory/chatindex.csv`).
+4. **Similarity Search**: When searching, generates an embedding for your query, computes the dot product across the stored vectors with NumPy, and prints matches meeting the similarity threshold (>= 0.8) ranked by relevance.
 
 ---
 
-## 👤 Author & Maintainer
+## Author
 
-**Kaustubh Srivastava**
-- GitHub: [@kaustubh-28](https://github.com/kaustubh-28)
-- Email: [kaustubh282.s@gmail.com](mailto:kaustubh282.s@gmail.com)
+- **Kaustubh Srivastava** — [GitHub](https://github.com/kaustubh-28) · [Email](mailto:kaustubh282.s@gmail.com)
 
-*Originally created by [Shrikar Archak](https://github.com/sarchak/gpthistory).*
+*Original project by [Shrikar Archak](https://github.com/sarchak/gpthistory).*
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the [MIT License](LICENSE.md).
