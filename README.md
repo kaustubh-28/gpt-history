@@ -88,8 +88,6 @@ Example output:
 
 - **Kaustubh Srivastava** — [GitHub](https://github.com/kaustubh-28) · [Email](mailto:kaustubh282.s@gmail.com)
 
-*Original project by [Shrikar Archak](https://github.com/sarchak/gpthistory).*
-
 ---
 
 ## License
